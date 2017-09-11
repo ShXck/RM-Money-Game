@@ -1,7 +1,7 @@
 #ifndef GAME_H_
 #define GAME_H_
-#define TEXT_ITEMS 9
-#define DEFAULT_BET_MONEY 300
+#define TEXT_ITEMS 10
+#define DEFAULT_BET_MONEY 100
 #include <iostream>
 #include <vector>
 #include <SFML/Graphics.hpp>
@@ -19,6 +19,9 @@ private:
 	void draw( sf::RenderWindow& window );
 	void set_text();
 	void check_button_clicked( sf::Vector2f mouse_pos );
+	void continue_bidding();
+	void start_bidding();
+	void get_next_round();
 private:
 	std::vector < Buyer > player_ai;
 	Game_Data_Handler game_handler;

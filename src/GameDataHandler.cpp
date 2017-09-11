@@ -1,6 +1,6 @@
 #include "GameDataHandler.h"
 
-Game_Data_Handler::Game_Data_Handler() : last_response( 1500 ) {
+Game_Data_Handler::Game_Data_Handler() {
 	rm_lib.rm_init( 0,0,0,0 );
 }
 
@@ -8,15 +8,25 @@ void Game_Data_Handler::set_data() {
 	send_player_data();
 
 	for( int i = 0; i < AI_PLAYERS_NUM; i++ ) {
-		players_ai.push_back( Buyer() );
+		players_ai.push_back( Buyer( util::random_number( 5000,10000 ) ) );
 	}
 
 	load_items();
+}
 
+void Game_Data_Handler::reset( int round ) {
+	players_ai.clear();
+	for( int i = 0; i < AI_PLAYERS_NUM; i++ ) {
+		players_ai.push_back( Buyer( util::random_number( 5000,10000 ) * round ) );
+	}
+	std::string _bid = std::to_string( 0 );
+	rm_lib.rm_replace( data_keys[4].c_str(), &_bid );
+	std::string player_funds = std::to_string( util::random_number( 5000,10000 ) * round );
+	rm_lib.rm_replace( data_keys[0].c_str(), &player_funds );
 }
 
 void Game_Data_Handler::send_player_data() {
-	int initial_funds = 1500;
+	int initial_funds = util::random_number( 5000,10000 );
 	int matches_won = 0;
 	int pl_score = 0;
 	int people_beaten = 0;
@@ -57,15 +67,11 @@ void Game_Data_Handler::load_items() {
 void Game_Data_Handler::update_player_funds( int new_val ) {
 	std::string str_val = std::to_string( new_val );
 	rm_lib.rm_replace( data_keys[0].c_str(), &str_val );
-	char* _response = rm_lib.rm_get( data_keys[0].c_str() )->_value;
-	last_response = std::atoi( _response );
 }
 
 void Game_Data_Handler::bet( int money ) {
 	char* current_bid = rm_lib.rm_get( data_keys[4].c_str() )->_value;
-	std::cout << "CB:" << current_bid << std::endl;
 	int current_bid_int = std::atoi( current_bid ) + money;
-	std::cout << "CB_INT: " << current_bid_int << std::endl;
 	std::string str_bid = std::to_string( current_bid_int );
 	rm_lib.rm_replace( data_keys[4].c_str(), &str_bid );
 }
@@ -88,7 +94,22 @@ int Game_Data_Handler::get_current_bid() {
 	return std::atoi( current_bid );
 }
 
-const int& Game_Data_Handler::player_funds() const { return last_response; }
+std::string Game_Data_Handler::get_winner() {
+	char* _response = rm_lib.rm_get( data_keys[0].c_str() )->_value;
+	int player_bid = std::atoi( _response );
+	Buyer& b_win = players_ai[0];
+	for( unsigned int i = 1; i < players_ai.size(); i++ ) {
+		Buyer& curr_buyer = players_ai[i];
+		if( curr_buyer.bid() > b_win.bid() ) b_win = curr_buyer;
+	}
+	if( b_win.bid() > player_bid ) return b_win.name();
+	return "Player";
+}
+
+int Game_Data_Handler::player_funds() {
+	char* r = rm_lib.rm_get( data_keys[0].c_str() )->_value;
+	return std::atoi( r );
+}
 
 Game_Data_Handler::~Game_Data_Handler() { }
 

@@ -13,6 +13,23 @@ Game::Game() : _round( 1 ) {
 	withdraw_button.setFillColor( sf::Color::Red );
 }
 
+void Game::start_bidding() {
+	std::thread t( [this]() {
+		for( unsigned int i = 0; i < 4; i++ ) {
+			Buyer& _current = game_handler.get_buyer_info( i );
+			if( _current.is_playing() ) {
+				int _bid = util::random_number( 50, 100 );
+				_current.bet( _bid, game_handler.get_current_bid() );
+				game_handler.bet( _current.bid() );
+			}
+			_text[ i ].setString( game_handler.get_buyer_info( i ).name() + ": $" + std::to_string( game_handler.get_buyer_info( i ).bid() ) );
+			_text[ 8 ].setString( "BID: $" + std::to_string( game_handler.get_current_bid() ) );
+			std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
+		}
+	} );
+	t.detach();
+}
+
 void Game::handle_input( sf::Event e, sf::RenderWindow& window ) {
 
 	switch( e.key.code ) {
@@ -28,13 +45,57 @@ void Game::handle_input( sf::Event e, sf::RenderWindow& window ) {
 
 void Game::check_button_clicked( sf::Vector2f mouse_pos ) {
 	if( bet_button.getGlobalBounds().contains( mouse_pos ) ) {
-		game_handler.update_player_funds( game_handler.player_funds() - DEFAULT_BET_MONEY );
-		game_handler.bet( DEFAULT_BET_MONEY );
+		if( game_handler.player_funds() > 0 ) {
+			int _bid = DEFAULT_BET_MONEY;
+			if( game_handler.player_funds() - ( _bid + game_handler.get_current_bid() ) >= 0 ) {
+				game_handler.update_player_funds( game_handler.player_funds() - ( _bid + game_handler.get_current_bid() ) );
+				game_handler.bet( _bid );
+			}
+		}
 		_text[ 4 ].setString( "Your wallet: $" + std::to_string( game_handler.player_funds() ) );
 		_text[ 8 ].setString( "BID: $" + std::to_string( game_handler.get_current_bid() ) );
+		continue_bidding();
 	} else if( withdraw_button.getGlobalBounds().contains( mouse_pos ) ) {
-		//Witdraw
+		get_next_round();
 	}
+}
+
+void Game::continue_bidding() {
+	std::thread t( [this]() {
+		int players_out = 0;
+		for( unsigned int i = 0; i < 4; i++ ) {
+			Buyer& curr_buyer = game_handler.get_buyer_info( i );
+			int withdraw_likelihood = util::random_number( 1, 100 );
+			if( withdraw_likelihood > 70 ) {
+				curr_buyer.withdraw();
+				_text[ i ].setString( game_handler.get_buyer_info( i ).name() + ": OUT" );
+				players_out++;
+			} else {
+				if( curr_buyer.is_playing() && curr_buyer.funds() > game_handler.get_current_bid() ) {
+					int _bid = util::random_number( 50, 100 );
+					curr_buyer.bet( _bid, game_handler.get_current_bid() );
+					game_handler.bet( curr_buyer.bid() - game_handler.get_current_bid() );
+					_text[ i ].setString( game_handler.get_buyer_info( i ).name() + ": $" + std::to_string( game_handler.get_buyer_info( i ).bid() ) );
+					_text[ 8 ].setString( "BID: $" + std::to_string( game_handler.get_current_bid() ) );
+				} else {
+					_text[ i ].setString( game_handler.get_buyer_info( i ).name() + ": OUT" );
+					curr_buyer.withdraw();
+					players_out++;
+				}
+			}
+			std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
+		}
+		if( players_out == 4 ) {
+			get_next_round();
+		}
+	});
+	t.detach();
+}
+
+void Game::get_next_round() {
+	game_handler.reset( ++_round );
+	set_text();
+	start_bidding();
 }
 
 void Game::draw( sf::RenderWindow& window ) {
@@ -51,6 +112,8 @@ void Game::start() {
 	game_handler.set_data();
 
 	set_text();
+
+	start_bidding();
 
 	sf::RenderWindow _window( sf::VideoMode( 800,600 ), "Here comes the money" );
 
@@ -109,7 +172,7 @@ void Game::set_text() {
 	_text[ 4 ].setCharacterSize( 28 );
 
 	_text[ 5 ].setFont( _font );
-	_text[ 5 ].setString( "BET" );
+	_text[ 5 ].setString( "BID!" );
 	_text[ 5 ].setFillColor( sf::Color::Black );
 	_text[ 5 ].setPosition( 210, 505 );
 	_text[ 5 ].setCharacterSize( 28 );
@@ -131,6 +194,13 @@ void Game::set_text() {
 	_text[ 8 ].setFillColor( sf::Color::Magenta );
 	_text[ 8 ].setPosition( 500, 160 );
 	_text[ 8 ].setCharacterSize( 30 );
+
+	_text[ 9 ].setFont( _font );
+	_text[ 9 ].setString( "Winner: " );
+	_text[ 9 ].setFillColor( sf::Color::White );
+	_text[ 9 ].setPosition( 500, 250 );
+	_text[ 9 ].setCharacterSize( 30 );
+
 }
 
 Game::~Game() { }

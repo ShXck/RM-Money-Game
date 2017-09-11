@@ -6,12 +6,13 @@
 
 class Buyer {
 public:
-	Buyer();
-	void bet( int money );
+	Buyer( int initial_funds );
+	void bet( int money, int current_bid );
 	void withdraw();
 	int funds();
 	std::string name();
 	int bid();
+	const bool& is_playing() const;
 	virtual ~Buyer();
 private:
 	void set_name();
